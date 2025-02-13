@@ -55,6 +55,20 @@ returns:
 "https://github.com/FrameworkComputer/framework-system"
 ```
 
+## list multi selector
+
+```nix
+select "nixosConfigurations.ignavia.config.environment.systemPackages.{0,3}.meta.homepage" flake
+```
+
+returns:
+```nix
+[
+  "https://github.com/FrameworkComputer/framework-system"
+  "https://gitlab.gnome.org/GNOME/adwaita-icon-theme"
+]
+```
+
 ## all list selector
 
 ```nix
