@@ -18,8 +18,17 @@ let
         recursiveSelect (selectorIndex + 1) selectorList (
           builtins.elemAt target (builtins.fromJSON selector)
         )
+      # support bla.{1,3} for lists and recurse into the second and fourth elements
+      else if (builtins.match ''^\{([^}]*)}$'' selector) != null then
+        let
+          elementsToGet = map builtins.fromJSON (
+            builtins.filter (x: !builtins.isList x) (
+              builtins.split "," (builtins.head (builtins.match ''^\{([^}]*)}$'' selector))
+            )
+          );
+        in map (i: recursiveSelect (selectorIndex + 1) selectorList (builtins.elemAt target i)) elementsToGet
       else
-        throw "only * or a number is allowed in list selector"
+        throw "only *, {n,n} or a number is allowed in list selector"
 
     else if builtins.isAttrs target then
       # handle the case bla.x.*.z where x is an attrset and we recurse into all elements

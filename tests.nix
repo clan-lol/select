@@ -20,6 +20,7 @@ in
   {
     listSingle = assert ((select "somelists.0.name" testdata) == "foo"); true;
     listAll = assert ((select "somelists.*.name" testdata) == [ "foo" "bar" "baz" ]); true;
+    listMulti = assert ((select "somelists.{0,2}.name" testdata) == [ "foo" "baz" ]); true;
     dictSingle = assert ((select "somedict.hello" testdata) == "world"); true;
     dictQuoted = assert ((select ''somedict."foo.bar"'' testdata) == "baz"); true;
     dictMulti = assert ((select "somedict.foo.something.{x,y}" testdata) == { x = "hi"; y = "there";}); true;
