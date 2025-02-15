@@ -63,22 +63,14 @@ rec {
       parseSelector "foo.bar" == [ "foo" "bar" ]
   **/
   parseSelector =
-    selector:
     let
-      splitByQuote = x: builtins.filter (x: !builtins.isList x) (builtins.split ''"'' x);
-      splitByDot =
-        x:
-        builtins.filter (x: x != "") (
-          map (builtins.replaceStrings [ "." ] [ "" ]) (
-            builtins.filter (x: !builtins.isList x) (builtins.split ''\.'' x)
-          )
-        );
-      handleQuoted =
-        x: if x == [ ] then [ ] else [ (builtins.head x) ] ++ handleUnquoted (builtins.tail x);
-      handleUnquoted =
-        x: if x == [ ] then [ ] else splitByDot (builtins.head x) ++ handleQuoted (builtins.tail x);
+      splitByDot = x: builtins.filter (s: !builtins.isList s) (builtins.split ''\.'' x);
     in
-    handleUnquoted (splitByQuote selector);
+    selector:
+      builtins.concatMap (x:
+        if (builtins.isString x) then (builtins.filter (s: s != "") (splitByDot x)) else x)
+        # ''foo.bar."baz"'' -> [ "foo.bar" [ "baz" ] ]
+        (builtins.split ''"([^"]*)"'' selector);
 
   select = selector: target: recursiveSelect 0 (parseSelector selector) target;
 }
