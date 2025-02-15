@@ -1,4 +1,4 @@
-let
+rec {
   recursiveSelect =
     selectorIndex: selectorList: target:
     let
@@ -56,6 +56,12 @@ let
     else
       throw "Expected a list or an attrset";
 
+  /**
+    parseSelector :: str -> [str]
+
+    Examples:
+      parseSelector "foo.bar" == [ "foo" "bar" ]
+  **/
   parseSelector =
     selector:
     let
@@ -73,5 +79,6 @@ let
         x: if x == [ ] then [ ] else splitByDot (builtins.head x) ++ handleQuoted (builtins.tail x);
     in
     handleUnquoted (splitByQuote selector);
-in
-selector: target: recursiveSelect 0 (parseSelector selector) target
+
+  select = selector: target: recursiveSelect 0 (parseSelector selector) target;
+}
