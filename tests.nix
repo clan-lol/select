@@ -1,5 +1,5 @@
 let
-  select = import ./select.nix;
+  select = (import ./select.nix).select;
   testdata = {
     somedict = {
       hello = "world";
