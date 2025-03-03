@@ -1,4 +1,4 @@
-# select
+# nix-select
 
 This is pure nix library to get elements/lists/attrs from nested list/attrs
 
