@@ -89,7 +89,7 @@ rec {
             if idx >= len then [ ] else f (builtins.elemAt list idx) ++ go (idx + 1) g f;
         in go 0 f g;
       # parseQuoted :: str -> [str]
-      # List `parseSelector` but only for selector with quoted attributes
+      # A selector parser that supports quoted strings.
       parseQuoted = s:
         alternate
           # A list of strings separated by quotes
