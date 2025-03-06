@@ -57,6 +57,45 @@ rec {
       throw "Expected a list or an attrset";
 
   /**
+    Selector parser that supports parsing quoted attributes.
+
+    parseQuotedSelector :: str -> [str]
+
+    # Inputs
+
+    `x`
+
+    : 1\. Selector string (Specialised attribute path)
+
+    # Examples
+    :::{.example}
+
+    ```nix
+    parseQuotedSelector "foo.bar"
+    => [ "foo" "bar" ]
+    parseQuotedSelector ''someAttrset."foo.bar"''
+    => [ "someAttrset" "foo.bar" ]
+
+    ```
+  **/
+  parseQuotedSelector =
+    let
+      splitByQuote = x: builtins.filter (x: !builtins.isList x) (builtins.split ''"'' x);
+      splitByDot =
+        x:
+        builtins.filter (x: x != "") (
+          map (builtins.replaceStrings [ "." ] [ "" ]) (
+            builtins.filter (x: !builtins.isList x) (builtins.split ''\.'' x)
+          )
+        );
+      handleQuoted =
+        x: if x == [ ] then [ ] else [ (builtins.head x) ] ++ handleUnquoted (builtins.tail x);
+      handleUnquoted =
+        x: if x == [ ] then [ ] else splitByDot (builtins.head x) ++ handleQuoted (builtins.tail x);
+    in
+      selector: handleUnquoted (splitByQuote selector);
+
+  /**
     parseSelector :: str -> [str]
 
     Examples:
@@ -64,13 +103,17 @@ rec {
   **/
   parseSelector =
     let
-      splitByDot = x: builtins.filter (s: !builtins.isList s) (builtins.split ''\.'' x);
+      splitByCurly = x: builtins.filter (x: !builtins.isList x) (builtins.split ''[{}]'' x);
+      handleCurly = x:
+        if x == [ ] then
+          [ ]
+        else
+          [ ("{" + (builtins.concatStringsSep "" (parseQuotedSelector (builtins.head x))) + "}") ]
+          ++ handleUncurly (builtins.tail x);
+      handleUncurly =
+        x: if x == [ ] then [ ] else (parseQuotedSelector (builtins.head x)) ++ handleCurly (builtins.tail x);
     in
-    selector:
-      builtins.concatMap (x:
-        if (builtins.isString x) then (builtins.filter (s: s != "") (splitByDot x)) else x)
-        # ''foo.bar."baz"'' -> [ "foo.bar" [ "baz" ] ]
-        (builtins.split ''"([^"]*)"'' selector);
+      selector: handleUncurly (splitByCurly selector);
 
   select = selector: target: recursiveSelect 0 (parseSelector selector) target;
 }

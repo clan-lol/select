@@ -9,6 +9,7 @@ let
         something.z = "sup";
       };
       "foo.bar" = "baz";
+      "foo.baz" = "bar";
     };
     somelists = [
       { name = "foo"; data.a = ":)"; }
@@ -25,5 +26,5 @@ in
     dictQuoted = assert ((select ''somedict."foo.bar"'' testdata) == "baz"); true;
     dictMulti = assert ((select "somedict.foo.something.{x,y}" testdata) == { x = "hi"; y = "there";}); true;
     dictAll = assert ((select "somedict.foo.something.*" testdata) == { x = "hi"; y = "there"; z = "sup";}); true;
-
+    multiQuote = assert ((select ''somedict.{"foo.bar","foo.baz"}'' testdata) == { "foo.bar" = "baz"; "foo.baz" = "bar"; }); true;
   }
