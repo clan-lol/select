@@ -77,7 +77,7 @@ rec {
     => [ "someAttrset" "{foo.bar,foo.baz}" ]
     ```
   **/
-  parseSelector = selector:
+  parseSelector =
     let
       # alternate :: [str] -> (str -> [str]) -> (str -> [str]) -> Int -> [str]
       # Example:
@@ -99,10 +99,11 @@ rec {
           (x: [ x ]);
       splitByCurly = x: builtins.filter (x: !builtins.isList x) (builtins.split ''[{}]'' x);
     in
-      alternate (splitByCurly selector)
-        parseQuoted
-        # `parseQuoted` the string inside the curly braces
-        (x: [ ("{" + builtins.concatStringsSep "" (parseQuoted x) + "}") ]);
+      selector:
+        alternate (splitByCurly selector)
+          parseQuoted
+          # `parseQuoted` the string inside the curly braces
+          (x: [ ("{" + builtins.concatStringsSep "" (parseQuoted x) + "}") ]);
 
   select = selector: target: recursiveSelect 0 (parseSelector selector) target;
 }
