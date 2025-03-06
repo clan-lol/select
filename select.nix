@@ -79,10 +79,10 @@ rec {
   **/
   parseSelector =
     let
-      # alternate :: [str] -> (str -> [str]) -> (str -> [str]) -> Int -> [str]
+      # mapAlternate :: (str -> [str]) -> (str -> [str]) -> [str] -> [str]
       # Example:
-      #  alternate [ 1 2 ] (x: [ (x + 1) ]) (x: [ (x + 2) ]) 0 == [ 2 4 ]
-      alternate = list: f: g:
+      #  mapAlternate (x: [ (x + 1) ]) (x: [ (x + 2) ]) [ 1 2 ] == [ 2 4 ]
+      mapAlternate = f: g: list:
         let
           len = builtins.length list;
           go = idx: f: g:
@@ -91,21 +91,22 @@ rec {
       # parseQuoted :: str -> [str]
       # A selector parser that supports quoted strings.
       parseQuoted = s:
-        alternate
-          # A list of strings separated by quotes
-          (builtins.filter (x: !builtins.isList x) (builtins.split ''"'' s))
+        mapAlternate
           # Split the string by dots
           (x: builtins.filter (x: x != "") (
                 map (builtins.replaceStrings [ "." ] [ "" ])
                   (builtins.filter (x: !builtins.isList x) (builtins.split ''\.'' x))))
-          (x: [ x ]);
+          (x: [ x ])
+          # A list of strings separated by quotes
+          (builtins.filter (x: !builtins.isList x) (builtins.split ''"'' s));
       splitByCurly = x: builtins.filter (x: !builtins.isList x) (builtins.split ''[{}]'' x);
     in
       selector:
-        alternate (splitByCurly selector)
+        mapAlternate 
           parseQuoted
           # `parseQuoted` the string inside the curly braces
-          (x: [ ("{" + builtins.concatStringsSep "" (parseQuoted x) + "}") ]);
+          (x: [ ("{" + builtins.concatStringsSep "" (parseQuoted x) + "}") ])
+          (splitByCurly selector);
 
   select = selector: target: recursiveSelect 0 (parseSelector selector) target;
 }
