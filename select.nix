@@ -57,63 +57,52 @@ rec {
       throw "Expected a list or an attrset";
 
   /**
-    Selector parser that supports parsing quoted attributes.
-
-    parseQuotedSelector :: str -> [str]
+    parseSelector :: str -> [str]
 
     # Inputs
 
-    `x`
+    `selector`
 
-    : 1\. Selector string (Specialised attribute path)
+    : 1\. Specialised attribute path string.
 
     # Examples
     :::{.example}
 
     ```nix
-    parseQuotedSelector "foo.bar"
+    parseSelector "foo.bar"
     => [ "foo" "bar" ]
-    parseQuotedSelector ''someAttrset."foo.bar"''
+    parseSelector ''someAttrset."foo.bar"''
     => [ "someAttrset" "foo.bar" ]
-
+    parseSelector ''someAttrset.{"foo.bar","foo.baz"}''
+    => [ "someAttrset" "{foo.bar,foo.baz}" ]
     ```
   **/
-  parseQuotedSelector =
+  parseSelector = selector:
     let
-      splitByQuote = x: builtins.filter (x: !builtins.isList x) (builtins.split ''"'' x);
-      splitByDot =
-        x:
-        builtins.filter (x: x != "") (
-          map (builtins.replaceStrings [ "." ] [ "" ]) (
-            builtins.filter (x: !builtins.isList x) (builtins.split ''\.'' x)
-          )
-        );
-      handleQuoted =
-        x: if x == [ ] then [ ] else [ (builtins.head x) ] ++ handleUnquoted (builtins.tail x);
-      handleUnquoted =
-        x: if x == [ ] then [ ] else splitByDot (builtins.head x) ++ handleQuoted (builtins.tail x);
-    in
-      selector: handleUnquoted (splitByQuote selector);
-
-  /**
-    parseSelector :: str -> [str]
-
-    Examples:
-      parseSelector "foo.bar" == [ "foo" "bar" ]
-  **/
-  parseSelector =
-    let
+      # alternate :: [str] -> (str -> [str]) -> (str -> [str]) -> Int -> [str]
+      # Example:
+      #  alternate [ 1 2 ] (x: [ (x + 1) ]) (x: [ (x + 2) ]) 0 == [ 2 4 ]
+      alternate = list: f: g:
+        let
+          len = builtins.length list;
+          go = idx: f: g:
+            if idx >= len then [ ] else f (builtins.elemAt list idx) ++ go (idx + 1) g f;
+        in go 0 f g;
+      parseQuoted = s:
+        alternate
+          # A list of strings separated by quotes
+          (builtins.filter (x: !builtins.isList x) (builtins.split ''"'' s))
+          # Split the string by dots
+          (x: builtins.filter (x: x != "") (
+                map (builtins.replaceStrings [ "." ] [ "" ])
+                  (builtins.filter (x: !builtins.isList x) (builtins.split ''\.'' x))))
+          (x: [ x ]);
       splitByCurly = x: builtins.filter (x: !builtins.isList x) (builtins.split ''[{}]'' x);
-      handleCurly = x:
-        if x == [ ] then
-          [ ]
-        else
-          [ ("{" + (builtins.concatStringsSep "" (parseQuotedSelector (builtins.head x))) + "}") ]
-          ++ handleUncurly (builtins.tail x);
-      handleUncurly =
-        x: if x == [ ] then [ ] else (parseQuotedSelector (builtins.head x)) ++ handleCurly (builtins.tail x);
     in
-      selector: handleUncurly (splitByCurly selector);
+      alternate (splitByCurly selector)
+        parseQuoted
+        # `parseQuoted` the string inside the curly braces
+        (x: [ ("{" + builtins.concatStringsSep "" (parseQuoted x) + "}") ]);
 
   select = selector: target: recursiveSelect 0 (parseSelector selector) target;
 }
