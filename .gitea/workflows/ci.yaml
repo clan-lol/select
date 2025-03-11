@@ -5,7 +5,7 @@ on:
     branches:
       - main
 jobs:
-  checks-impure:
+  tests:
     runs-on: nix
     steps:
       - uses: actions/checkout@v3
