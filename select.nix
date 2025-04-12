@@ -6,7 +6,10 @@ rec {
       parseSelector ''*.{foo,bla}.123.hello''
       => [
         { type = "all"; }
-        { type = "set" values = [ "foo" "bla" ]; }
+        { type = "set" values = [
+          { type = str; value = "foo"; }
+          { type = str; value = "bla"; }
+        ]; }
         { type = "str" value = "123"; }
         { type = "str" value = "hello"; }
       ]
@@ -107,7 +110,12 @@ rec {
                 selectors = state.selectors ++ [
                   {
                     type = "set";
-                    values = state.acc_selectors ++ [ state.acc_str ];
+                    values = state.acc_selectors ++ [
+                      {
+                        type = "str";
+                        value = state.acc_str;
+                      }
+                    ];
                   }
                 ];
                 acc_str = "";
@@ -118,7 +126,12 @@ rec {
             recurse str (idx + 1) (
               state
               // {
-                acc_selectors = state.acc_selectors ++ [ state.acc_str ];
+                acc_selectors = state.acc_selectors ++ [
+                  {
+                    type = "str";
+                    value = state.acc_str;
+                  }
+                ];
                 acc_str = "";
               }
             )
@@ -216,7 +229,7 @@ rec {
             else if selector.type == "str" then
               recurse selectors (idx + 1) (builtins.elemAt obj (toInt selector.value))
             else if selector.type == "set" then
-              builtins.map (i: recurse selectors (idx + 1) (builtins.elemAt obj (toInt i))) selector.values
+              builtins.map (i: recurse selectors (idx + 1) (builtins.elemAt obj (toInt i.value))) selector.values
             else
               throw "unexpected type ${selector.type}"
 
@@ -230,8 +243,8 @@ rec {
               let
                 filteredAttrs = builtins.listToAttrs (
                   map (x: {
-                    name = x;
-                    value = builtins.getAttr x obj;
+                    name = x.value;
+                    value = builtins.getAttr x.value obj;
                   }) selector.values
                 );
               in
