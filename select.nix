@@ -3,12 +3,13 @@ rec {
       parseSelector :: String -> [ Selector ]
 
       Example:
-      parseSelector ''*.{foo,bla}.123.hello.?bla''
+      parseSelector ''*.{foo,bla,?bob}.123.hello.?bla''
       => [
         { type = "all"; }
         { type = "set" values = [
           { type = str; value = "foo"; }
           { type = str; value = "bla"; }
+          { type = maybe; value = "bob"; }
         ]; }
         { type = "str" value = "123"; }
         { type = "str" value = "hello"; }
@@ -95,7 +96,7 @@ rec {
             recurse str (idx + 1) (
               state
               // {
-                stack = [ "set" ] ++ state.stack;
+                stack = [ "set_start" ] ++ state.stack;
                 acc_str = "";
               }
             )
@@ -118,19 +119,81 @@ rec {
               }
             )
 
-        # inside a set multuple values {foo,bar}
-        else if mode == "set" then
-          if cur == "}" then
+        # start of a set {foo,bar} or after a comma
+        else if mode == "set_start" then
+          if cur == "?" then
             recurse str (idx + 1) (
               state
               // {
-                stack = [ "end" ] ++ state.stack;
+                stack = [ "set_maybe" ] ++ (builtins.tail state.stack);
+              }
+            )
+          else if cur == "\\" then
+            recurse str (idx + 1) (
+              state
+              // {
+                stack = [
+                  "escape"
+                  "set_str"
+                ] ++ (builtins.tail state.stack);
+              }
+            )
+          else if cur == ''"'' then
+            recurse str (idx + 1) (
+              state
+              // {
+                stack = [
+                  "quote"
+                  "set_str"
+                ] ++ (builtins.tail state.stack);
+              }
+            )
+          else if cur == "}" then
+            recurse str (idx + 1) (
+              state
+              // {
+                stack = [ "end" ] ++ (builtins.tail state.stack);
                 selectors = state.selectors ++ [
                   {
                     type = "set";
                     values = state.acc_selectors ++ [
                       {
                         type = "str";
+                        value = state.acc_str;
+                      }
+                    ];
+                  }
+                ];
+              }
+            )
+          else
+            recurse str (idx + 1) (
+              state
+              // {
+                stack = [ "set_str" ] ++ (builtins.tail state.stack);
+                acc_str = "${state.acc_str}${cur}";
+              }
+            )
+
+        # inside a set multuple values {foo,bar}
+        else if (mode == "set_maybe") || (mode == "set_str") then
+          if cur == "}" then
+            recurse str (idx + 1) (
+              state
+              // {
+                stack = [ "end" ] ++ (builtins.tail state.stack);
+                selectors = state.selectors ++ [
+                  {
+                    type = "set";
+                    values = state.acc_selectors ++ [
+                      {
+                        type =
+                          if mode == "set_maybe" then
+                            "maybe"
+                          else if mode == "set_str" then
+                            "str"
+                          else
+                            throw "unknown mode ${mode}";
                         value = state.acc_str;
                       }
                     ];
@@ -144,9 +207,16 @@ rec {
             recurse str (idx + 1) (
               state
               // {
+                stack = [ "set_start" ] ++ (builtins.tail state.stack);
                 acc_selectors = state.acc_selectors ++ [
                   {
-                    type = "str";
+                    type =
+                      if mode == "set_maybe" then
+                        "maybe"
+                      else if mode == "set_str" then
+                        "str"
+                      else
+                        throw "unknown mode ${mode}";
                     value = state.acc_str;
                   }
                 ];
@@ -270,7 +340,18 @@ rec {
             else if selector.type == "str" then
               recurse selectors (idx + 1) (builtins.elemAt obj (toInt selector.value))
             else if selector.type == "set" then
-              builtins.map (i: recurse selectors (idx + 1) (builtins.elemAt obj (toInt i.value))) selector.values
+              let
+                listSelectors = builtins.map (
+                  x:
+                  if x.type == "str" then
+                    toInt x.value
+                  else if x.type == "maybe" then
+                    throw "maybe type not supported for lists in set"
+                  else
+                    throw "unexpected type ${x.type}"
+                ) selector.values;
+              in
+              builtins.map (i: recurse selectors (idx + 1) (builtins.elemAt obj i)) listSelectors
             else if selector.type == "maybe" then
               if (builtins.length obj) > (toInt selector.value) then
                 [ (recurse selectors (idx + 1) (builtins.elemAt obj (toInt selector.value))) ]
@@ -287,11 +368,14 @@ rec {
               recurse selectors (idx + 1) (builtins.getAttr selector.value obj)
             else if selector.type == "set" then
               let
+                attrsAvailable = builtins.filter (
+                  x: (x.type == "str") || (builtins.hasAttr x.value obj)
+                ) selector.values;
                 filteredAttrs = builtins.listToAttrs (
                   map (x: {
                     name = x.value;
                     value = builtins.getAttr x.value obj;
-                  }) selector.values
+                  }) attrsAvailable
                 );
               in
               builtins.mapAttrs (_: v: recurse selectors (idx + 1) v) filteredAttrs

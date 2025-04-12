@@ -113,4 +113,13 @@ in
   maybeListNotExist =
     assert ((select ''somelists.?3'' testdata) == [ ]);
     true;
+
+  maybeInSet =
+    assert (
+      (select ''somedict.foo.something.{?x,?z,?a}'' testdata) == {
+        x = "hi";
+        z = "sup";
+      }
+    );
+    true;
 }
