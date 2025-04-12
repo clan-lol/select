@@ -98,4 +98,19 @@ in
       }
     );
     true;
+  maybeExist =
+    assert ((select ''somedict.foo.?something.x'' testdata) == { something = "hi"; });
+    true;
+
+  maybeNotExist =
+    assert ((select ''somedict.foo.?nothing.x'' testdata) == { });
+    true;
+
+  maybeListExist =
+    assert ((select ''somelists.?2.data.c'' testdata) == [ ":(" ]);
+    true;
+
+  maybeListNotExist =
+    assert ((select ''somelists.?3'' testdata) == [ ]);
+    true;
 }

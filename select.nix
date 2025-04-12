@@ -3,7 +3,7 @@ rec {
       parseSelector :: String -> [ Selector ]
 
       Example:
-      parseSelector ''*.{foo,bla}.123.hello''
+      parseSelector ''*.{foo,bla}.123.hello.?bla''
       => [
         { type = "all"; }
         { type = "set" values = [
@@ -12,6 +12,7 @@ rec {
         ]; }
         { type = "str" value = "123"; }
         { type = "str" value = "hello"; }
+        { type = "maybe"; value = "bla"; }
       ]
   */
   parseSelector =
@@ -31,6 +32,14 @@ rec {
             ++ [
               {
                 type = "str";
+                value = state.acc_str;
+              }
+            ]
+          else if mode == "maybe" then
+            state.selectors
+            ++ [
+              {
+                type = "maybe";
                 value = state.acc_str;
               }
             ]
@@ -59,6 +68,15 @@ rec {
               // {
                 stack = [ "end" ] ++ state.stack;
                 selectors = state.selectors ++ [ { type = "all"; } ];
+                acc_str = "";
+              }
+            )
+
+          else if cur == "?" then
+            recurse str (idx + 1) (
+              state
+              // {
+                stack = [ "maybe" ] ++ state.stack;
                 acc_str = "";
               }
             )
@@ -161,6 +179,29 @@ rec {
             }
           )
 
+        else if mode == "maybe" then
+          if cur == "." then
+            if builtins.length state.stack > 1 then
+              throw "stack unexpected length ${state.stack}"
+            else
+              recurse str (idx + 1) (
+                state
+                // {
+                  stack = [ ];
+                  acc_str = "";
+                  selectors = state.selectors ++ [
+                    {
+                      type = "maybe";
+                      value = state.acc_str;
+                    }
+                  ];
+                }
+              )
+          else if cur == "\\" then
+            recurse str (idx + 1) (state // { stack = [ "escape" ] ++ state.stack; })
+          else
+            recurse str (idx + 1) (state // { acc_str = "${state.acc_str}${cur}"; })
+
         # just a normal string selector
         else if mode == "str" then
           if cur == "." then
@@ -230,6 +271,11 @@ rec {
               recurse selectors (idx + 1) (builtins.elemAt obj (toInt selector.value))
             else if selector.type == "set" then
               builtins.map (i: recurse selectors (idx + 1) (builtins.elemAt obj (toInt i.value))) selector.values
+            else if selector.type == "maybe" then
+              if (builtins.length obj) > (toInt selector.value) then
+                [ (recurse selectors (idx + 1) (builtins.elemAt obj (toInt selector.value))) ]
+              else
+                [ ]
             else
               throw "unexpected type ${selector.type}"
 
@@ -249,6 +295,11 @@ rec {
                 );
               in
               builtins.mapAttrs (_: v: recurse selectors (idx + 1) v) filteredAttrs
+            else if selector.type == "maybe" then
+              if builtins.hasAttr selector.value obj then
+                { ${selector.value} = recurse selectors (idx + 1) (builtins.getAttr selector.value obj); }
+              else
+                { }
             else
               throw "unexpected type ${selector.type}"
           else
