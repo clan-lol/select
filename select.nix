@@ -241,31 +241,8 @@ rec {
             }
           )
 
-        else if mode == "maybe" then
-          if cur == "." then
-            if builtins.length state.stack > 1 then
-              throw "stack unexpected length ${state.stack}"
-            else
-              recurse str (idx + 1) (
-                state
-                // {
-                  stack = [ ];
-                  acc_str = "";
-                  selectors = state.selectors ++ [
-                    {
-                      type = "maybe";
-                      value = state.acc_str;
-                    }
-                  ];
-                }
-              )
-          else if cur == "\\" then
-            recurse str (idx + 1) (state // { stack = [ "escape" ] ++ state.stack; })
-          else
-            recurse str (idx + 1) (state // { acc_str = "${state.acc_str}${cur}"; })
-
         # just a normal string selector
-        else if mode == "str" then
+        else if (mode == "str") || (mode == "maybe") then
           if cur == "." then
             if builtins.length state.stack > 1 then
               throw "stack unexpected length ${state.stack}"
@@ -273,11 +250,11 @@ rec {
               recurse str (idx + 1) (
                 state
                 // {
-                  stack = [ ];
+                  stack = builtins.tail state.stack;
                   acc_str = "";
                   selectors = state.selectors ++ [
                     {
-                      type = "str";
+                      type = mode;
                       value = state.acc_str;
                     }
                   ];
