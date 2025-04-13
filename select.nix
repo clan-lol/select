@@ -6,7 +6,7 @@ rec {
       parseSelector ''*.{foo,bla,?bob}.123.hello.?bla''
       => [
         { type = "all"; }
-        { type = "set" values = [
+        { type = "set" value = [
           { type = str; value = "foo"; }
           { type = str; value = "bla"; }
           { type = maybe; value = "bob"; }
@@ -156,7 +156,7 @@ rec {
                 selectors = state.selectors ++ [
                   {
                     type = "set";
-                    values = state.acc_selectors ++ [
+                    value = state.acc_selectors ++ [
                       {
                         type = "str";
                         value = state.acc_str;
@@ -175,7 +175,7 @@ rec {
               }
             )
 
-        # inside a set multuple values {foo,bar}
+        # inside a set of multiple values {foo,bar}
         else if (mode == "set_maybe") || (mode == "set_str") then
           if cur == "}" then
             recurse str (idx + 1) (
@@ -185,7 +185,7 @@ rec {
                 selectors = state.selectors ++ [
                   {
                     type = "set";
-                    values = state.acc_selectors ++ [
+                    value = state.acc_selectors ++ [
                       {
                         type =
                           if mode == "set_maybe" then
@@ -349,7 +349,7 @@ rec {
                     throw "maybe type not supported for lists in set"
                   else
                     throw "unexpected type ${x.type}"
-                ) selector.values;
+                ) selector.value;
               in
               builtins.map (i: recurse selectors (idx + 1) (builtins.elemAt obj i)) listSelectors
             else if selector.type == "maybe" then
@@ -370,7 +370,7 @@ rec {
               let
                 attrsAvailable = builtins.filter (
                   x: (x.type == "str") || (builtins.hasAttr x.value obj)
-                ) selector.values;
+                ) selector.value;
                 filteredAttrs = builtins.listToAttrs (
                   map (x: {
                     name = x.value;
