@@ -27,20 +27,12 @@ rec {
         in
         # reached end of string
         if idx == builtins.stringLength str then
-          # we only need to handle str here because other modes have a terminating character
-          if mode == "str" then
+          # we only need to handle str and maybe here because other modes have a terminating character
+          if (mode == "str") || (mode == "maybe") then
             state.selectors
             ++ [
               {
-                type = "str";
-                value = state.acc_str;
-              }
-            ]
-          else if mode == "maybe" then
-            state.selectors
-            ++ [
-              {
-                type = "maybe";
+                type = mode;
                 value = state.acc_str;
               }
             ]
