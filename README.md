@@ -68,6 +68,23 @@ returns:
 { }
 ```
 
+### can also be used inside a set selector
+
+```nix
+select "nixosConfigurations.ignavia.config.networking.{?hostname,?hostName,iproute2}" flake
+```
+
+returns:
+```nix
+{
+  hostName = "ignavia";
+  iproute2 = {
+    enable = false;
+    rttablesExtraConfig = "";
+  };
+}
+```
+
 ## list selector
 
 ```nix
