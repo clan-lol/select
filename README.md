@@ -44,6 +44,30 @@ returns:
 true
 ```
 
+## maybe selector
+
+### existing target
+
+```nix
+select "nixosConfigurations.ignavia.config.networking.?hostName" flake
+```
+
+returns:
+```nix
+{ hostName = "ignavia"; }
+```
+
+### not existing target
+
+```nix
+select "nixosConfigurations.ignavia.config.networking.?hostname" flake
+```
+
+returns:
+```nix
+{ }
+```
+
 ## list selector
 
 ```nix
