@@ -88,7 +88,7 @@ rec {
             recurse str (idx + 1) (
               state
               // {
-                stack = [ "set_start" ] ++ state.stack;
+                stack = [ "set" ] ++ state.stack;
                 acc_str = "";
               }
             )
@@ -111,13 +111,13 @@ rec {
               }
             )
 
-        # start of a set {foo,bar} or after a comma
-        else if mode == "set_start" then
-          if cur == "?" then
+        # a set selector {foo,bar}
+        else if mode == "set" then
+          if (state.submode == "") && (cur == "?") then
             recurse str (idx + 1) (
               state
               // {
-                stack = [ "set_maybe" ] ++ (builtins.tail state.stack);
+                submode = "maybe";
               }
             )
           else if cur == "\\" then
@@ -126,8 +126,8 @@ rec {
               // {
                 stack = [
                   "escape"
-                  "set_str"
-                ] ++ (builtins.tail state.stack);
+                ] ++ state.stack;
+                submode = if state.submode == "" then "str" else state.submode;
               }
             )
           else if cur == ''"'' then
@@ -136,8 +136,22 @@ rec {
               // {
                 stack = [
                   "quote"
-                  "set_str"
-                ] ++ (builtins.tail state.stack);
+                ] ++ state.stack;
+                submode = if state.submode == "" then "str" else state.submode;
+              }
+            )
+          else if cur == "," then
+            recurse str (idx + 1) (
+              state
+              // {
+                acc_selectors = state.acc_selectors ++ [
+                  {
+                    type = if state.submode == "" then str else state.submode;
+                    value = state.acc_str;
+                  }
+                ];
+                submode = "";
+                acc_str = "";
               }
             )
           else if cur == "}" then
@@ -150,77 +164,23 @@ rec {
                     type = "set";
                     value = state.acc_selectors ++ [
                       {
-                        type = "str";
+                        type = if state.submode == "" then str else state.submode;
                         value = state.acc_str;
                       }
                     ];
                   }
                 ];
+                submode = "";
               }
             )
           else
             recurse str (idx + 1) (
               state
               // {
-                stack = [ "set_str" ] ++ (builtins.tail state.stack);
                 acc_str = "${state.acc_str}${cur}";
+                submode = if state.submode == "" then "str" else state.submode;
               }
             )
-
-        # inside a set of multiple values {foo,bar}
-        else if (mode == "set_maybe") || (mode == "set_str") then
-          if cur == "}" then
-            recurse str (idx + 1) (
-              state
-              // {
-                stack = [ "end" ] ++ (builtins.tail state.stack);
-                selectors = state.selectors ++ [
-                  {
-                    type = "set";
-                    value = state.acc_selectors ++ [
-                      {
-                        type =
-                          if mode == "set_maybe" then
-                            "maybe"
-                          else if mode == "set_str" then
-                            "str"
-                          else
-                            throw "unknown mode ${mode}";
-                        value = state.acc_str;
-                      }
-                    ];
-                  }
-                ];
-                acc_str = "";
-                acc_selectors = [ ];
-              }
-            )
-          else if cur == "," then
-            recurse str (idx + 1) (
-              state
-              // {
-                stack = [ "set_start" ] ++ (builtins.tail state.stack);
-                acc_selectors = state.acc_selectors ++ [
-                  {
-                    type =
-                      if mode == "set_maybe" then
-                        "maybe"
-                      else if mode == "set_str" then
-                        "str"
-                      else
-                        throw "unknown mode ${mode}";
-                    value = state.acc_str;
-                  }
-                ];
-                acc_str = "";
-              }
-            )
-          else if cur == "\\" then
-            recurse str (idx + 1) (state // { stack = [ "escape" ] ++ state.stack; })
-          else if cur == ''"'' then
-            recurse str (idx + 1) (state // { stack = [ "quote" ] ++ state.stack; })
-          else
-            recurse str (idx + 1) (state // { acc_str = "${state.acc_str}${cur}"; })
 
         # inside a quoted string "bla"
         else if mode == "quote" then
@@ -241,7 +201,7 @@ rec {
             }
           )
 
-        # just a normal string selector
+        # just a normal string selector or maybe
         else if (mode == "str") || (mode == "maybe") then
           if cur == "." then
             if builtins.length state.stack > 1 then
@@ -270,6 +230,7 @@ rec {
     in
     recurse x 0 {
       stack = [ ];
+      submode = ""; # currently only ised by set
       acc_selectors = [ ];
       acc_str = "";
       selectors = [ ];
