@@ -146,7 +146,7 @@ rec {
               // {
                 acc_selectors = state.acc_selectors ++ [
                   {
-                    type = if state.submode == "" then str else state.submode;
+                    type = if state.submode == "" then "str" else state.submode;
                     value = state.acc_str;
                   }
                 ];
@@ -230,8 +230,8 @@ rec {
     in
     recurse x 0 {
       stack = [ ];
-      submode = ""; # currently only ised by set
-      acc_selectors = [ ];
+      submode = ""; # only used by set
+      acc_selectors = [ ]; # only used by set
       acc_str = "";
       selectors = [ ];
     };
