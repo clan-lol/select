@@ -171,6 +171,7 @@ rec {
                   }
                 ];
                 submode = "";
+                acc_selectors = [ ];
               }
             )
           else
