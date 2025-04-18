@@ -102,6 +102,13 @@ rec {
                 ] ++ state.stack;
               }
             )
+          else if cur == "." then
+            recurse str (idx + 1) (
+              state
+              // {
+                selectors = state.selectors ++ [ { type = "str"; value = state.acc_str; } ];
+              }
+            )
           else
             recurse str (idx + 1) (
               state
